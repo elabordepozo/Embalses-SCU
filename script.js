@@ -3,8 +3,6 @@ let embalsesData = [];
 
 // Variables globales
 let filteredData = [...embalsesData];
-let percentageChart = null;
-let volumeChart = null;
 let modalChart = null;
 
 // Inicialización
@@ -13,9 +11,8 @@ document.addEventListener('DOMContentLoaded', async function() {
         await loadEmbalsesData();
         initializeDashboard();
         setupEventListeners();
-        renderEmbalses();
+        populateEmbalseSelector();
         updateStatistics();
-        createCharts();
     } catch (error) {
         console.error('Error al cargar los datos:', error);
         showErrorMessage('Error al cargar los datos de los embalses. Verifique que el archivo CSV esté disponible.');
@@ -25,7 +22,14 @@ document.addEventListener('DOMContentLoaded', async function() {
 // Cargar datos desde CSV
 async function loadEmbalsesData() {
     try {
-        const response = await fetch('BD/embalses_santiago_cuba.csv');
+        // Evitar caché y resolver correctamente la ruta en GitHub Pages y local
+        const cacheBuster = `v=${Date.now()}`;
+        const isGitHubPages = window.location.hostname.endsWith('github.io');
+        // Base del path actual (carpeta donde está index.html)
+        const basePath = window.location.pathname.replace(/[^\/]*$/, '');
+        const csvUrl = `${basePath}BD/embalses_santiago_cuba.csv?${cacheBuster}`;
+
+        const response = await fetch(csvUrl, { cache: 'no-store' });
         if (!response.ok) {
             throw new Error(`Error HTTP: ${response.status}`);
         }
@@ -125,6 +129,10 @@ function setupEventListeners() {
         btn.addEventListener('click', handleFilter);
     });
 
+    // Selector de embalses
+    const embalseSelect = document.getElementById('embalseSelect');
+    embalseSelect.addEventListener('change', handleEmbalseSelection);
+
     // Modal
     const modal = document.getElementById('embalseModal');
     const closeBtn = document.querySelector('.close');
@@ -144,7 +152,6 @@ function handleSearch(event) {
         embalse.nombre.toLowerCase().includes(searchTerm) ||
         embalse.municipio.toLowerCase().includes(searchTerm)
     );
-    renderEmbalses();
     updateStatistics();
 }
 
@@ -165,65 +172,79 @@ function handleFilter(event) {
         filteredData = embalsesData.filter(embalse => embalse.categoria === filter);
     }
     
-    renderEmbalses();
     updateStatistics();
 }
 
-// Renderizar embalses
-function renderEmbalses() {
-    const grid = document.getElementById('embalsesGrid');
-    grid.innerHTML = '';
-
-    if (filteredData.length === 0) {
-        grid.innerHTML = '<div class="no-results">No se encontraron embalses que coincidan con los criterios de búsqueda.</div>';
-        return;
-    }
-
-    filteredData.forEach((embalse, index) => {
-        const card = createEmbalseCard(embalse, index);
-        grid.appendChild(card);
+// Poblar el selector de embalses
+function populateEmbalseSelector() {
+    const select = document.getElementById('embalseSelect');
+    select.innerHTML = '<option value="">Selecciona un embalse...</option>';
+    
+    embalsesData.forEach(embalse => {
+        const option = document.createElement('option');
+        option.value = embalse.id;
+        option.textContent = `${embalse.nombre} - ${embalse.municipio} (${embalse.porcentaje}%)`;
+        select.appendChild(option);
     });
 }
 
-// Crear tarjeta de embalse
-function createEmbalseCard(embalse, index) {
-    const card = document.createElement('div');
-    card.className = 'embalse-card';
-    card.style.animationDelay = `${index * 0.1}s`;
+// Manejar selección de embalse
+function handleEmbalseSelection(event) {
+    const selectedId = parseInt(event.target.value);
+    if (selectedId) {
+        const selectedEmbalse = embalsesData.find(embalse => embalse.id === selectedId);
+        if (selectedEmbalse) {
+            showEmbalseInfo(selectedEmbalse);
+        }
+    } else {
+        clearEmbalseInfo();
+    }
+}
 
-    const porcentaje = embalse.porcentaje;
-    const categoria = embalse.categoria;
-
-    card.innerHTML = `
-        <div class="embalse-header">
-            <div class="embalse-name">${embalse.nombre}</div>
-            <div class="embalse-percentage percentage-${categoria}">${porcentaje}%</div>
-        </div>
-        <div class="progress-bar">
-            <div class="progress-fill progress-${categoria}" style="width: ${porcentaje}%"></div>
-        </div>
-        <div class="embalse-details">
-            <div class="detail-item">
-                <span>Municipio:</span>
-                <span>${embalse.municipio}</span>
-            </div>
-            <div class="detail-item">
-                <span>Capacidad:</span>
-                <span>${embalse.capacidad} hm³</span>
-            </div>
-            <div class="detail-item">
-                <span>Actual:</span>
-                <span>${embalse.volumenActual} hm³</span>
-            </div>
-            <div class="detail-item">
-                <span>Uso:</span>
-                <span>${embalse.uso}</span>
-            </div>
-        </div>
+// Mostrar información del embalse seleccionado
+function showEmbalseInfo(embalse) {
+    // Actualizar placeholder del mapa
+    const mapPlaceholder = document.querySelector('.map-placeholder');
+    mapPlaceholder.innerHTML = `
+        <i class="fas fa-map-marker-alt" style="color: #e74c3c;"></i>
+        <h4>${embalse.nombre}</h4>
+        <p><strong>Municipio:</strong> ${embalse.municipio}</p>
+        <p><strong>Coordenadas:</strong> ${embalse.coordenadas.lat.toFixed(4)}, ${embalse.coordenadas.lng.toFixed(4)}</p>
+        <p><strong>Capacidad:</strong> ${embalse.capacidad} hm³</p>
+        <p><strong>Volumen Actual:</strong> ${embalse.volumenActual} hm³</p>
+        <p><strong>Porcentaje:</strong> ${embalse.porcentaje}%</p>
+        <p><strong>Uso:</strong> ${embalse.uso}</p>
     `;
 
-    card.addEventListener('click', () => openModal(embalse));
-    return card;
+    // Actualizar placeholder de tendencias
+    const trendPlaceholder = document.querySelector('.trend-placeholder');
+    trendPlaceholder.innerHTML = `
+        <i class="fas fa-chart-line" style="color: #3498db;"></i>
+        <h4>Gráficos de Tendencia</h4>
+        <p>Para: <strong>${embalse.nombre}</strong></p>
+        <p>Los gráficos de tendencia se construirán próximamente</p>
+        <div style="margin-top: 20px; padding: 15px; background: rgba(52, 152, 219, 0.1); border-radius: 10px;">
+            <p style="margin: 0; font-size: 0.9rem; color: #2c3e50;">
+                <i class="fas fa-info-circle"></i> 
+                Aquí se mostrarán gráficos de evolución temporal del volumen, precipitaciones y otros indicadores.
+            </p>
+        </div>
+    `;
+}
+
+// Limpiar información del embalse
+function clearEmbalseInfo() {
+    const mapPlaceholder = document.querySelector('.map-placeholder');
+    mapPlaceholder.innerHTML = `
+        <i class="fas fa-map"></i>
+        <p>Selecciona un embalse para ver su ubicación en el mapa</p>
+    `;
+
+    const trendPlaceholder = document.querySelector('.trend-placeholder');
+    trendPlaceholder.innerHTML = `
+        <i class="fas fa-chart-area"></i>
+        <p>Los gráficos de tendencia se construirán próximamente</p>
+    `;
 }
 
 // Actualizar estadísticas
@@ -238,99 +259,6 @@ function updateStatistics() {
     document.getElementById('averagePercentage').textContent = `${averagePercentage}%`;
 }
 
-// Crear gráficos
-function createCharts() {
-    createPercentageChart();
-    createVolumeChart();
-}
-
-// Gráfico de distribución por porcentaje
-function createPercentageChart() {
-    const ctx = document.getElementById('percentageChart').getContext('2d');
-    
-    const highCount = embalsesData.filter(e => e.categoria === 'high').length;
-    const mediumCount = embalsesData.filter(e => e.categoria === 'medium').length;
-    const lowCount = embalsesData.filter(e => e.categoria === 'low').length;
-
-    percentageChart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: ['Alto (>70%)', 'Medio (40-70%)', 'Bajo (<40%)'],
-            datasets: [{
-                data: [highCount, mediumCount, lowCount],
-                backgroundColor: [
-                    '#27ae60',
-                    '#f39c12',
-                    '#e74c3c'
-                ],
-                borderWidth: 0
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        padding: 20,
-                        usePointStyle: true
-                    }
-                }
-            }
-        }
-    });
-}
-
-// Gráfico de volumen
-function createVolumeChart() {
-    const ctx = document.getElementById('volumeChart').getContext('2d');
-    
-    const sortedData = [...embalsesData].sort((a, b) => b.volumenActual - a.volumenActual);
-    
-    volumeChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: sortedData.map(e => e.nombre.split(' ')[0]), // Solo primera palabra
-            datasets: [{
-                label: 'Volumen Actual (hm³)',
-                data: sortedData.map(e => e.volumenActual),
-                backgroundColor: sortedData.map(e => {
-                    switch(e.categoria) {
-                        case 'high': return '#27ae60';
-                        case 'medium': return '#f39c12';
-                        case 'low': return '#e74c3c';
-                        default: return '#3498db';
-                    }
-                }),
-                borderRadius: 8,
-                borderSkipped: false
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: false
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    grid: {
-                        color: 'rgba(0,0,0,0.1)'
-                    }
-                },
-                x: {
-                    grid: {
-                        display: false
-                    }
-                }
-            }
-        }
-    });
-}
 
 // Abrir modal
 function openModal(embalse) {
@@ -401,34 +329,6 @@ function closeModal() {
     }
 }
 
-// Función para actualizar gráficos
-function updateCharts() {
-    // Actualizar gráfico de porcentajes
-    if (percentageChart) {
-        const highCount = embalsesData.filter(e => e.categoria === 'high').length;
-        const mediumCount = embalsesData.filter(e => e.categoria === 'medium').length;
-        const lowCount = embalsesData.filter(e => e.categoria === 'low').length;
-        
-        percentageChart.data.datasets[0].data = [highCount, mediumCount, lowCount];
-        percentageChart.update();
-    }
-
-    // Actualizar gráfico de volúmenes
-    if (volumeChart) {
-        const sortedData = [...embalsesData].sort((a, b) => b.volumenActual - a.volumenActual);
-        volumeChart.data.labels = sortedData.map(e => e.nombre.split(' ')[0]);
-        volumeChart.data.datasets[0].data = sortedData.map(e => e.volumenActual);
-        volumeChart.data.datasets[0].backgroundColor = sortedData.map(e => {
-            switch(e.categoria) {
-                case 'high': return '#27ae60';
-                case 'medium': return '#f39c12';
-                case 'low': return '#e74c3c';
-                default: return '#3498db';
-            }
-        });
-        volumeChart.update();
-    }
-}
 
 // Función para actualizar datos (simulación de datos en tiempo real)
 function updateData() {
@@ -441,9 +341,7 @@ function updateData() {
     });
 
     // Actualizar visualizaciones
-    renderEmbalses();
     updateStatistics();
-    updateCharts();
 }
 
 // Actualizar datos cada 30 segundos (opcional)
@@ -455,9 +353,8 @@ async function refreshData() {
         showLoadingMessage('Actualizando datos...');
         await loadEmbalsesData();
         initializeDashboard();
-        renderEmbalses();
+        populateEmbalseSelector();
         updateStatistics();
-        updateCharts();
         hideLoadingMessage();
         showSuccessMessage('Datos actualizados correctamente');
     } catch (error) {
@@ -556,56 +453,23 @@ function showMessage(message, type) {
     });
 }
 
-// Agregar botones al header
+// Conectar botones del footer
 document.addEventListener('DOMContentLoaded', function() {
-    const headerContent = document.querySelector('.header-content');
-    
     // Botón de actualización
-    const refreshBtn = document.createElement('button');
-    refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Actualizar Datos';
-    refreshBtn.className = 'refresh-btn';
-    refreshBtn.onclick = refreshData;
-    headerContent.appendChild(refreshBtn);
+    const refreshBtn = document.getElementById('refreshBtn');
+    if (refreshBtn) {
+        refreshBtn.onclick = refreshData;
+    }
     
     // Botón de exportación
-    const exportBtn = document.createElement('button');
-    exportBtn.innerHTML = '<i class="fas fa-download"></i> Exportar Datos';
-    exportBtn.className = 'export-btn';
-    exportBtn.onclick = exportData;
-    headerContent.appendChild(exportBtn);
+    const exportBtn = document.getElementById('exportBtn');
+    if (exportBtn) {
+        exportBtn.onclick = exportData;
+    }
 });
 
-// Estilos adicionales para botones y mensajes
-const exportStyles = `
-.export-btn, .refresh-btn {
-    color: white;
-    border: none;
-    padding: 12px 20px;
-    border-radius: 25px;
-    cursor: pointer;
-    font-size: 1rem;
-    font-weight: 500;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 15px;
-    margin-right: 10px;
-}
-
-.export-btn {
-    background: linear-gradient(135deg, #27ae60, #2ecc71);
-}
-
-.refresh-btn {
-    background: linear-gradient(135deg, #3498db, #2980b9);
-}
-
-.export-btn:hover, .refresh-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-}
-
+// Estilos adicionales para mensajes
+const messageStyles = `
 .no-results {
     grid-column: 1 / -1;
     text-align: center;
@@ -683,5 +547,5 @@ const exportStyles = `
 
 // Agregar estilos al documento
 const styleSheet = document.createElement('style');
-styleSheet.textContent = exportStyles;
+styleSheet.textContent = messageStyles;
 document.head.appendChild(styleSheet);

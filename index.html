@@ -13,7 +13,7 @@
         <!-- Header -->
         <header class="header">
             <div class="header-content">
-                <h1><i class="fas fa-tint"></i> Dashboard de Embalses</h1>
+                <h1><i class="fas fa-tint"></i> Embalses Santiago de Cuba</h1>
                 <p>Provincia de Santiago de Cuba</p>
             </div>
             <div class="header-stats">
@@ -38,6 +38,12 @@
                 <i class="fas fa-search"></i>
                 <input type="text" id="searchInput" placeholder="Buscar embalse...">
             </div>
+            <div class="embalse-selector">
+                <i class="fas fa-list"></i>
+                <select id="embalseSelect">
+                    <option value="">Selecciona un embalse...</option>
+                </select>
+            </div>
             <div class="filter-buttons">
                 <button class="filter-btn active" data-filter="all">Todos</button>
                 <button class="filter-btn" data-filter="high">Alto (>70%)</button>
@@ -48,21 +54,32 @@
 
         <!-- Main Content -->
         <div class="main-content">
-            <!-- Chart Section -->
-            <div class="chart-section">
-                <div class="chart-container">
-                    <h3>Distribución por Porcentaje de Llenado</h3>
-                    <canvas id="percentageChart"></canvas>
+            <div class="content-layout">
+                <!-- Columna Izquierda - Gráficos de Tendencia -->
+                <div class="trends-column">
+                    <div class="trends-section">
+                        <h3><i class="fas fa-chart-line"></i> Gráficos de Tendencia</h3>
+                        <div class="trends-content">
+                            <div class="trend-placeholder">
+                                <i class="fas fa-chart-area"></i>
+                                <p>Los gráficos de tendencia se construirán próximamente</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="chart-container">
-                    <h3>Volumen por Embalse</h3>
-                    <canvas id="volumeChart"></canvas>
-                </div>
-            </div>
 
-            <!-- Embalses Grid -->
-            <div class="embalses-grid" id="embalsesGrid">
-                <!-- Los embalses se cargarán dinámicamente -->
+                <!-- Columna Derecha - Mapa de Ubicación -->
+                <div class="map-column">
+                    <div class="map-section">
+                        <h3><i class="fas fa-map-marker-alt"></i> Ubicación del Embalse</h3>
+                        <div class="map-content">
+                            <div class="map-placeholder">
+                                <i class="fas fa-map"></i>
+                                <p>Selecciona un embalse para ver su ubicación en el mapa</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -99,6 +116,23 @@
                 </div>
             </div>
         </div>
+
+        <!-- Footer con botones de acción -->
+        <footer class="footer">
+            <div class="footer-content">
+                <div class="footer-buttons">
+                    <button class="refresh-btn" id="refreshBtn">
+                        <i class="fas fa-sync-alt"></i> Actualizar Datos
+                    </button>
+                    <button class="export-btn" id="exportBtn">
+                        <i class="fas fa-download"></i> Exportar Datos
+                    </button>
+                </div>
+                <div class="footer-info">
+                    <p>&copy; 2024 Dashboard de Embalses - Santiago de Cuba</p>
+                </div>
+            </div>
+        </footer>
     </div>
 
     <script src="script.js"></script>
