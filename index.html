@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Embalses - Santiago de Cuba</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1><i class="fas fa-tint"></i> Dashboard de Embalses</h1>
+                <p>Provincia de Santiago de Cuba</p>
+            </div>
+            <div class="header-stats">
+                <div class="stat-card">
+                    <span class="stat-number" id="totalCapacity">0</span>
+                    <span class="stat-label">Capacidad Total (hm³)</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number" id="totalCurrent">0</span>
+                    <span class="stat-label">Volumen Actual (hm³)</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number" id="averagePercentage">0%</span>
+                    <span class="stat-label">Promedio de Llenado</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Controls -->
+        <div class="controls">
+            <div class="search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchInput" placeholder="Buscar embalse...">
+            </div>
+            <div class="filter-buttons">
+                <button class="filter-btn active" data-filter="all">Todos</button>
+                <button class="filter-btn" data-filter="high">Alto (>70%)</button>
+                <button class="filter-btn" data-filter="medium">Medio (40-70%)</button>
+                <button class="filter-btn" data-filter="low">Bajo (<40%)</button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Chart Section -->
+            <div class="chart-section">
+                <div class="chart-container">
+                    <h3>Distribución por Porcentaje de Llenado</h3>
+                    <canvas id="percentageChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3>Volumen por Embalse</h3>
+                    <canvas id="volumeChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Embalses Grid -->
+            <div class="embalses-grid" id="embalsesGrid">
+                <!-- Los embalses se cargarán dinámicamente -->
+            </div>
+        </div>
+
+        <!-- Modal para detalles -->
+        <div class="modal" id="embalseModal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <div class="modal-header">
+                    <h2 id="modalTitle"></h2>
+                    <div class="modal-percentage" id="modalPercentage"></div>
+                </div>
+                <div class="modal-body">
+                    <div class="modal-chart">
+                        <canvas id="modalChart"></canvas>
+                    </div>
+                    <div class="modal-details">
+                        <div class="detail-item">
+                            <span class="detail-label">Capacidad Total:</span>
+                            <span class="detail-value" id="modalCapacity"></span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Volumen Actual:</span>
+                            <span class="detail-value" id="modalCurrent"></span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Municipio:</span>
+                            <span class="detail-value" id="modalMunicipio"></span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Uso Principal:</span>
+                            <span class="detail-value" id="modalUso"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
