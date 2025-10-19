@@ -45,30 +45,25 @@
                 </select>
             </div>
             <div class="filter-buttons">
-                <button class="filter-btn active" data-filter="all">Todos</button>
-                <button class="filter-btn" data-filter="high">Alto (>70%)</button>
-                <button class="filter-btn" data-filter="medium">Medio (40-70%)</button>
-                <button class="filter-btn" data-filter="low">Bajo (<40%)</button>
+                <div class="date-filter">
+                    <i class="fas fa-calendar-alt"></i>
+                    <select id="monthFilter" multiple>
+                        <!-- Opciones de meses se agregarán dinámicamente -->
+                    </select>
+                </div>
+                <div class="date-filter">
+                    <i class="fas fa-calendar-alt"></i>
+                    <select id="yearFilter" multiple>
+                        <!-- Opciones de años se agregarán dinámicamente -->
+                    </select>
+                </div>
             </div>
         </div>
 
         <!-- Main Content -->
         <div class="main-content">
             <div class="content-layout">
-                <!-- Columna Izquierda - Gráficos de Tendencia -->
-                <div class="trends-column">
-                    <div class="trends-section">
-                        <h3><i class="fas fa-chart-line"></i> Gráficos de Tendencia</h3>
-                        <div class="trends-content">
-                            <div class="trend-placeholder">
-                                <i class="fas fa-chart-area"></i>
-                                <p>Los gráficos de tendencia se construirán próximamente</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Columna Derecha - Mapa de Ubicación -->
+                <!-- Columna Izquierda - Mapa de Ubicación -->
                 <div class="map-column">
                     <div class="map-section">
                         <h3><i class="fas fa-map-marker-alt"></i> Ubicación del Embalse</h3>
@@ -76,6 +71,19 @@
                             <div class="map-placeholder">
                                 <i class="fas fa-map"></i>
                                 <p>Selecciona un embalse para ver su ubicación en el mapa</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Columna Derecha - Gráficos de Tendencia -->
+                <div class="trends-column">
+                    <div class="trends-section">
+                        <h3><i class="fas fa-chart-line"></i> Gráficos de Tendencia</h3>
+                        <div class="trends-content">
+                            <div class="trend-placeholder">
+                                <i class="fas fa-chart-area"></i>
+                                <p>Los gráficos de tendencia se construirán próximamente</p>
                             </div>
                         </div>
                     </div>

@@ -160,29 +160,42 @@ body {
 
 .filter-buttons {
     display: flex;
-    gap: 10px;
+    gap: 15px;
     flex-wrap: wrap;
 }
 
-.filter-btn {
-    padding: 10px 20px;
+.date-filter {
+    position: relative;
+    min-width: 180px;
+}
+
+.date-filter i {
+    position: absolute;
+    left: 15px;
+    top: 14px;
+    color: #7f8c8d;
+    z-index: 1;
+}
+
+.date-filter select {
+    width: 100%;
+    padding: 10px 15px 10px 40px;
     border: 2px solid #e0e0e0;
-    background: white;
     border-radius: 25px;
+    font-size: 0.9rem;
+    background: white;
     cursor: pointer;
-    transition: all 0.3s ease;
-    font-weight: 500;
+    transition: border-color 0.3s ease;
 }
 
-.filter-btn:hover {
+.date-filter select:focus {
+    outline: none;
     border-color: #3498db;
-    color: #3498db;
 }
 
-.filter-btn.active {
-    background: #3498db;
-    color: white;
-    border-color: #3498db;
+.date-filter select[multiple] {
+    height: 100px; /* Adjust height as needed */
+    padding: 10px 15px 10px 40px;
 }
 
 /* Main Content */

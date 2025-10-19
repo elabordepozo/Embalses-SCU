@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         initializeDashboard();
         setupEventListeners();
         populateEmbalseSelector();
+        populateDateFilters();
         updateStatistics();
     } catch (error) {
         console.error('Error al cargar los datos:', error);
@@ -121,13 +122,14 @@ function getCategoria(porcentaje) {
 function setupEventListeners() {
     // Búsqueda
     const searchInput = document.getElementById('searchInput');
-    searchInput.addEventListener('input', handleSearch);
+    searchInput.addEventListener('input', applyAllFilters);
 
-    // Filtros
-    const filterButtons = document.querySelectorAll('.filter-btn');
-    filterButtons.forEach(btn => {
-        btn.addEventListener('click', handleFilter);
-    });
+    // Filtros de fecha
+    const monthFilter = document.getElementById('monthFilter');
+    monthFilter.addEventListener('change', applyAllFilters);
+
+    const yearFilter = document.getElementById('yearFilter');
+    yearFilter.addEventListener('change', applyAllFilters);
 
     // Selector de embalses
     const embalseSelect = document.getElementById('embalseSelect');
@@ -145,33 +147,41 @@ function setupEventListeners() {
     });
 }
 
-// Manejar búsqueda
-function handleSearch(event) {
-    const searchTerm = event.target.value.toLowerCase();
-    filteredData = embalsesData.filter(embalse => 
-        embalse.nombre.toLowerCase().includes(searchTerm) ||
-        embalse.municipio.toLowerCase().includes(searchTerm)
-    );
-    updateStatistics();
-}
+// Manejar todos los filtros
+function applyAllFilters() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const selectedMonths = Array.from(document.getElementById('monthFilter').selectedOptions).map(opt => opt.value);
+    const selectedYears = Array.from(document.getElementById('yearFilter').selectedOptions).map(opt => opt.value);
 
-// Manejar filtros
-function handleFilter(event) {
-    const filter = event.target.dataset.filter;
-    
-    // Actualizar botones activos
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    event.target.classList.add('active');
+    let data = [...embalsesData];
 
-    // Aplicar filtro
-    if (filter === 'all') {
-        filteredData = [...embalsesData];
-    } else {
-        filteredData = embalsesData.filter(embalse => embalse.categoria === filter);
+    // Filtro de búsqueda
+    if (searchTerm) {
+        data = data.filter(embalse => 
+            embalse.nombre.toLowerCase().includes(searchTerm) ||
+            embalse.municipio.toLowerCase().includes(searchTerm)
+        );
     }
-    
+
+    // Filtro de año
+    if (selectedYears.length > 0) {
+        data = data.filter(embalse => {
+            if (!embalse.fechaActualizacion) return false;
+            const year = new Date(embalse.fechaActualizacion).getFullYear();
+            return selectedYears.includes(year.toString());
+        });
+    }
+
+    // Filtro de mes
+    if (selectedMonths.length > 0) {
+        data = data.filter(embalse => {
+            if (!embalse.fechaActualizacion) return false;
+            const month = new Date(embalse.fechaActualizacion).getMonth(); // 0-11
+            return selectedMonths.includes(month.toString());
+        });
+    }
+
+    filteredData = data;
     updateStatistics();
 }
 
@@ -180,11 +190,41 @@ function populateEmbalseSelector() {
     const select = document.getElementById('embalseSelect');
     select.innerHTML = '<option value="">Selecciona un embalse...</option>';
     
-    embalsesData.forEach(embalse => {
+    embalsesData.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(embalse => {
         const option = document.createElement('option');
         option.value = embalse.id;
-        option.textContent = `${embalse.nombre} - ${embalse.municipio} (${embalse.porcentaje}%)`;
+        option.textContent = embalse.nombre;
         select.appendChild(option);
+    });
+}
+
+// Poblar filtros de fecha
+function populateDateFilters() {
+    const monthFilter = document.getElementById('monthFilter');
+    const yearFilter = document.getElementById('yearFilter');
+
+    const dates = embalsesData
+        .map(e => e.fechaActualizacion ? new Date(e.fechaActualizacion) : null)
+        .filter(d => d instanceof Date && !isNaN(d));
+
+    const uniqueYears = [...new Set(dates.map(d => d.getFullYear()))].sort((a, b) => b - a);
+    
+    const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+
+    monthFilter.innerHTML = '';
+    monthNames.forEach((month, index) => {
+        const option = document.createElement('option');
+        option.value = index; // 0-11
+        option.textContent = month;
+        monthFilter.appendChild(option);
+    });
+
+    yearFilter.innerHTML = '';
+    uniqueYears.forEach(year => {
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = year;
+        yearFilter.appendChild(option);
     });
 }
 
