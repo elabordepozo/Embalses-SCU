@@ -124,16 +124,18 @@ function setupEventListeners() {
     const searchInput = document.getElementById('searchInput');
     searchInput.addEventListener('input', applyAllFilters);
 
-    // Filtros de fecha
+    // Filtros de fecha (flatpickr serán inicializados en populateDateFilters)
     const monthFilter = document.getElementById('monthFilter');
-    monthFilter.addEventListener('change', applyAllFilters);
-
     const yearFilter = document.getElementById('yearFilter');
-    yearFilter.addEventListener('change', applyAllFilters);
+    // Los eventos onChange se asignan por flatpickr en populateDateFilters
 
     // Selector de embalses
     const embalseSelect = document.getElementById('embalseSelect');
     embalseSelect.addEventListener('change', handleEmbalseSelection);
+
+    // Botón limpiar filtros
+    const clearBtn = document.getElementById('clearFiltersBtn');
+    if (clearBtn) clearBtn.addEventListener('click', clearAllFilters);
 
     // Modal
     const modal = document.getElementById('embalseModal');
@@ -150,8 +152,28 @@ function setupEventListeners() {
 // Manejar todos los filtros
 function applyAllFilters() {
     const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-    const selectedMonths = Array.from(document.getElementById('monthFilter').selectedOptions).map(opt => opt.value);
-    const selectedYears = Array.from(document.getElementById('yearFilter').selectedOptions).map(opt => opt.value);
+    // Leer valores desde flatpickr inputs
+    const monthInput = document.getElementById('monthFilter');
+    const yearInput = document.getElementById('yearFilter');
+
+    // getSelected... ahora devuelve arrays de Date (selectedDates) que pueden ser 0,1 o 2 elementos (range)
+    const selectedMonthsDates = getSelectedMonthsFromFlatpickr(monthInput); // array de Date
+    const selectedYearsDates = getSelectedYearsFromFlatpickr(yearInput); // array de Date
+
+    // Convertir a rangos útiles
+    let monthRange = null; // {start: Date, end: Date}
+    if (selectedMonthsDates.length === 1) {
+        monthRange = { start: selectedMonthsDates[0], end: selectedMonthsDates[0] };
+    } else if (selectedMonthsDates.length >= 2) {
+        monthRange = { start: selectedMonthsDates[0], end: selectedMonthsDates[selectedMonthsDates.length - 1] };
+    }
+
+    let yearRange = null;
+    if (selectedYearsDates.length === 1) {
+        yearRange = { start: selectedYearsDates[0], end: selectedYearsDates[0] };
+    } else if (selectedYearsDates.length >= 2) {
+        yearRange = { start: selectedYearsDates[0], end: selectedYearsDates[selectedYearsDates.length - 1] };
+    }
 
     let data = [...embalsesData];
 
@@ -163,21 +185,26 @@ function applyAllFilters() {
         );
     }
 
-    // Filtro de año
-    if (selectedYears.length > 0) {
+    // Filtro por rangos de año/mes (si existen)
+    if (yearRange) {
         data = data.filter(embalse => {
             if (!embalse.fechaActualizacion) return false;
-            const year = new Date(embalse.fechaActualizacion).getFullYear();
-            return selectedYears.includes(year.toString());
+            const d = new Date(embalse.fechaActualizacion);
+            // Normalizar años a rango completo
+            const start = new Date(yearRange.start.getFullYear(), 0, 1);
+            const end = new Date(yearRange.end.getFullYear(), 11, 31, 23, 59, 59, 999);
+            return d >= start && d <= end;
         });
     }
 
-    // Filtro de mes
-    if (selectedMonths.length > 0) {
+    if (monthRange) {
         data = data.filter(embalse => {
             if (!embalse.fechaActualizacion) return false;
-            const month = new Date(embalse.fechaActualizacion).getMonth(); // 0-11
-            return selectedMonths.includes(month.toString());
+            const d = new Date(embalse.fechaActualizacion);
+            // monthRange start/end tienen año incluido (usamos ambos para construir intervalos completos de mes)
+            const start = new Date(monthRange.start.getFullYear(), monthRange.start.getMonth(), 1);
+            const end = new Date(monthRange.end.getFullYear(), monthRange.end.getMonth() + 1, 0, 23, 59, 59, 999); // último día del mes
+            return d >= start && d <= end;
         });
     }
 
@@ -208,24 +235,68 @@ function populateDateFilters() {
         .filter(d => d instanceof Date && !isNaN(d));
 
     const uniqueYears = [...new Set(dates.map(d => d.getFullYear()))].sort((a, b) => b - a);
-    
-    const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+    const uniqueMonths = [...new Set(dates.map(d => d.getMonth()))].sort((a, b) => a - b);
 
-    monthFilter.innerHTML = '';
-    monthNames.forEach((month, index) => {
-        const option = document.createElement('option');
-        option.value = index; // 0-11
-        option.textContent = month;
-        monthFilter.appendChild(option);
-    });
+    // Inicializar flatpickr si está disponible
+    if (window.flatpickr) {
+        try {
+            // month picker: usamos monthSelectPlugin para mostrar meses (sin día)
+            // month picker: permitir selección de rango de meses
+            flatpickr(monthFilter, {
+                mode: 'range',
+                dateFormat: 'Y-m',
+                altInput: true,
+                altFormat: 'F Y',
+                plugins: [new monthSelectPlugin({ shorthand: false, dateFormat: 'Y-m', altFormat: 'F Y' })],
+                onChange: applyAllFilters
+            });
 
-    yearFilter.innerHTML = '';
-    uniqueYears.forEach(year => {
-        const option = document.createElement('option');
-        option.value = year;
-        option.textContent = year;
-        yearFilter.appendChild(option);
-    });
+            // year picker: múltiples años
+            // year picker: permitir selección de rango de años
+            flatpickr(yearFilter, {
+                mode: 'range',
+                dateFormat: 'Y',
+                altInput: true,
+                altFormat: 'Y',
+                onChange: applyAllFilters
+            });
+
+            // Pre-seleccionar años encontrados en los datos
+            if (uniqueYears.length > 0) {
+                // preseleccionar rango de años: min..max
+                const minY = Math.min(...uniqueYears);
+                const maxY = Math.max(...uniqueYears);
+                flatpickr(yearFilter).setDate([new Date(minY, 0, 1), new Date(maxY, 0, 1)], true);
+            }
+
+            // Pre-seleccionar meses: rango desde el mes mínimo hasta el máximo
+            if (uniqueMonths.length > 0) {
+                const minM = Math.min(...uniqueMonths);
+                const maxM = Math.max(...uniqueMonths);
+                const sampleYear = (uniqueYears[0] || new Date().getFullYear());
+                flatpickr(monthFilter).setDate([new Date(sampleYear, minM, 1), new Date(sampleYear, maxM, 1)], true);
+            }
+        } catch (e) {
+            console.warn('Error inicializando flatpickr:', e);
+        }
+    } else {
+        console.warn('flatpickr no está disponible. Los filtros de fecha no tendrán selector tipo calendario.');
+    }
+}
+
+// Helpers para leer valores seleccionados de flatpickr
+function getSelectedMonthsFromFlatpickr(inputElem) {
+    if (!inputElem) return [];
+    const fp = inputElem._flatpickr;
+    if (!fp) return [];
+    return fp.selectedDates || [];
+}
+
+function getSelectedYearsFromFlatpickr(inputElem) {
+    if (!inputElem) return [];
+    const fp = inputElem._flatpickr;
+    if (!fp) return [];
+    return fp.selectedDates || [];
 }
 
 // Manejar selección de embalse
@@ -445,6 +516,35 @@ function showLoadingMessage(message) {
         </div>
     `;
     document.body.appendChild(loadingDiv);
+}
+
+// Limpiar todos los filtros (flatpickr & search)
+function clearAllFilters() {
+    // Limpiar input de búsqueda
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) searchInput.value = '';
+
+    // Limpiar flatpickr instances
+    const monthInput = document.getElementById('monthFilter');
+    const yearInput = document.getElementById('yearFilter');
+
+    if (monthInput && monthInput._flatpickr) monthInput._flatpickr.clear();
+    if (yearInput && yearInput._flatpickr) yearInput._flatpickr.clear();
+
+    // Recalcular filtros y UI
+    applyAllFilters();
+}
+
+// Helper para comprobar si una fecha cae dentro de un conjunto de rangos o elementos seleccionados
+function isDateInSelectedRanges(dateObj, selectedMonths, selectedYears) {
+    if (!dateObj || !(dateObj instanceof Date)) return false;
+    const month = dateObj.getMonth();
+    const year = dateObj.getFullYear().toString();
+
+    // Si se seleccionaron años y meses, ambos deben coincidir (si ambos filtros aplican)
+    if (selectedYears && selectedYears.length > 0 && !selectedYears.includes(year)) return false;
+    if (selectedMonths && selectedMonths.length > 0 && !selectedMonths.includes(month)) return false;
+    return true;
 }
 
 function hideLoadingMessage() {

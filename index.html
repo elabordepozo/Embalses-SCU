@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Embalses - Santiago de Cuba</title>
     <link rel="stylesheet" href="styles.css">
+        <!-- Flatpickr CSS -->
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+        <link rel="stylesheet" href="https://npmcdn.com/flatpickr/dist/plugins/monthSelect/style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -47,15 +50,16 @@
             <div class="filter-buttons">
                 <div class="date-filter">
                     <i class="fas fa-calendar-alt"></i>
-                    <select id="monthFilter" multiple>
-                        <!-- Opciones de meses se agregarán dinámicamente -->
-                    </select>
+                        <!-- Flatpickr: selector de meses (multiples) -->
+                        <input type="text" id="monthFilter" placeholder="Seleccionar meses" readonly />
                 </div>
                 <div class="date-filter">
                     <i class="fas fa-calendar-alt"></i>
-                    <select id="yearFilter" multiple>
-                        <!-- Opciones de años se agregarán dinámicamente -->
-                    </select>
+                        <!-- Flatpickr: selector de años (múltiple) -->
+                        <input type="text" id="yearFilter" placeholder="Seleccionar años" readonly />
+                </div>
+                <div class="filter-actions">
+                    <button id="clearFiltersBtn" class="clear-filters-btn" title="Limpiar filtros">Limpiar filtros</button>
                 </div>
             </div>
         </div>
@@ -143,6 +147,9 @@
         </footer>
     </div>
 
+        <!-- Flatpickr JS -->
+        <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+        <script src="https://npmcdn.com/flatpickr/dist/plugins/monthSelect/index.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
