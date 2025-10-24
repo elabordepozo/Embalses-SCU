@@ -1,5 +1,7 @@
 // Variable para almacenar los datos de los embalses
 let embalsesData = [];
+// Variable para almacenar los datos históricos de Céspedes
+let cespedesHistoricData = [];
 
 // Variables globales
 let filteredData = [...embalsesData];
@@ -9,6 +11,7 @@ let modalChart = null;
 document.addEventListener('DOMContentLoaded', async function() {
     try {
         await loadEmbalsesData();
+        await loadCespedesHistoricData();
         initializeDashboard();
         setupEventListeners();
         populateEmbalseSelector();
@@ -72,6 +75,63 @@ async function loadEmbalsesData() {
         return embalsesData;
     } catch (error) {
         console.error('Error al cargar datos CSV:', error);
+        throw error;
+    }
+}
+
+// Cargar datos históricos de Céspedes
+async function loadCespedesHistoricData() {
+    try {
+        const cacheBuster = `v=${Date.now()}`;
+        const basePath = window.location.pathname.replace(/[^\/]*$/, '');
+        const csvUrl = `${basePath}BD/Céspedes.csv?${cacheBuster}`;
+
+        const response = await fetch(csvUrl, { cache: 'no-store' });
+        if (!response.ok) {
+            throw new Error(`Error HTTP: ${response.status}`);
+        }
+        
+        const csvText = await response.text();
+        const lines = csvText.split('\n');
+        
+        // Saltar la primera línea (encabezado)
+        cespedesHistoricData = [];
+        
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (line) {
+                const values = line.split(',');
+                if (values.length >= 14) {
+                    const yearData = {
+                        no: parseInt(values[0]) || 0,
+                        year: parseInt(values[1]) || 0,
+                        months: {
+                            Ene: parseFloat(values[2]) || 0,
+                            Feb: parseFloat(values[3]) || 0,
+                            Mar: parseFloat(values[4]) || 0,
+                            Abr: parseFloat(values[5]) || 0,
+                            May: parseFloat(values[6]) || 0,
+                            Jun: parseFloat(values[7]) || 0,
+                            Jul: parseFloat(values[8]) || 0,
+                            Ago: parseFloat(values[9]) || 0,
+                            Sep: parseFloat(values[10]) || 0,
+                            Oct: parseFloat(values[11]) || 0,
+                            Nov: parseFloat(values[12]) || 0,
+                            Dic: parseFloat(values[13]) || 0
+                        }
+                    };
+                    
+                    if (yearData.year > 0) {
+                        cespedesHistoricData.push(yearData);
+                    }
+                }
+            }
+        }
+        
+        console.log(`Datos históricos de Céspedes cargados: ${cespedesHistoricData.length} años`);
+        return cespedesHistoricData;
+    } catch (error) {
+        console.error('Error al cargar datos históricos de Céspedes:', error);
         throw error;
     }
 }
@@ -147,6 +207,17 @@ function setupEventListeners() {
             closeModal();
         }
     });
+}
+
+// Función para actualizar el gráfico según los filtros
+function updateTrendsChartWithFilters() {
+    const selectedEmbalseId = document.getElementById('embalseSelect').value;
+    if (selectedEmbalseId) {
+        const selectedEmbalse = embalsesData.find(e => e.id === parseInt(selectedEmbalseId));
+        if (selectedEmbalse && (selectedEmbalse.nombre.toLowerCase().includes('céspedes') || selectedEmbalse.nombre.toLowerCase().includes('cespedes'))) {
+            createTrendsChart();
+        }
+    }
 }
 
 // Manejar todos los filtros
@@ -230,32 +301,27 @@ function populateDateFilters() {
     const monthFilter = document.getElementById('monthFilter');
     const yearFilter = document.getElementById('yearFilter');
 
-    const dates = embalsesData
-        .map(e => e.fechaActualizacion ? new Date(e.fechaActualizacion) : null)
-        .filter(d => d instanceof Date && !isNaN(d));
-
-    const uniqueYears = [...new Set(dates.map(d => d.getFullYear()))].sort((a, b) => b - a);
-    const uniqueMonths = [...new Set(dates.map(d => d.getMonth()))].sort((a, b) => a - b);
-
-    // Calcular min y max fechas para establecer límites
-    let minDate = null;
-    let maxDate = null;
-    if (dates.length > 0) {
-        minDate = new Date(Math.min(...dates));
-        maxDate = new Date(Math.max(...dates));
+    // Usar datos históricos de Céspedes si están disponibles para determinar el rango
+    let minYear = 1998;
+    let maxYear = new Date().getFullYear();
+    
+    if (cespedesHistoricData.length > 0) {
+        const years = cespedesHistoricData.map(d => d.year).filter(y => y > 0);
+        if (years.length > 0) {
+            minYear = Math.min(...years);
+            maxYear = Math.max(...years);
+        }
     }
 
     // Inicializar flatpickr si está disponible
     if (window.flatpickr) {
         try {
-            // Selector de meses con calendario visual
+            // Selector de meses con calendario visual (modo múltiple)
             flatpickr(monthFilter, {
-                mode: 'range',
-                dateFormat: 'Y-m',
+                mode: 'multiple',
+                dateFormat: 'm',
                 altInput: true,
-                altFormat: 'F Y',
-                minDate: minDate,
-                maxDate: maxDate,
+                altFormat: 'F',
                 locale: {
                     firstDayOfWeek: 1,
                     weekdays: {
@@ -265,25 +331,28 @@ function populateDateFilters() {
                     months: {
                         shorthand: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
                         longhand: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
-                    },
-                    rangeSeparator: ' hasta '
+                    }
                 },
                 plugins: [new monthSelectPlugin({ 
                     shorthand: false, 
-                    dateFormat: 'Y-m', 
-                    altFormat: 'F Y' 
+                    dateFormat: 'm', 
+                    altFormat: 'F'
                 })],
-                onChange: applyAllFilters
+                onChange: function() {
+                    applyAllFilters();
+                    updateTrendsChartWithFilters();
+                },
+                defaultDate: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => new Date(2024, m - 1, 1))
             });
 
-            // Selector de años con calendario visual
+            // Selector de años con calendario visual (modo múltiple)
             flatpickr(yearFilter, {
-                mode: 'range',
+                mode: 'multiple',
                 dateFormat: 'Y',
                 altInput: true,
                 altFormat: 'Y',
-                minDate: minDate ? new Date(minDate.getFullYear(), 0, 1) : null,
-                maxDate: maxDate ? new Date(maxDate.getFullYear(), 11, 31) : null,
+                minDate: new Date(minYear, 0, 1),
+                maxDate: new Date(maxYear, 11, 31),
                 locale: {
                     firstDayOfWeek: 1,
                     weekdays: {
@@ -293,26 +362,16 @@ function populateDateFilters() {
                     months: {
                         shorthand: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
                         longhand: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
-                    },
-                    rangeSeparator: ' hasta '
+                    }
                 },
-                onChange: applyAllFilters
+                onChange: function() {
+                    applyAllFilters();
+                    updateTrendsChartWithFilters();
+                },
+                // Pre-seleccionar todos los años disponibles
+                defaultDate: cespedesHistoricData.map(d => new Date(d.year, 0, 1))
             });
 
-            // Pre-seleccionar todo el rango de datos disponibles
-            if (uniqueYears.length > 0) {
-                const minY = Math.min(...uniqueYears);
-                const maxY = Math.max(...uniqueYears);
-                yearFilter._flatpickr.setDate([new Date(minY, 0, 1), new Date(maxY, 0, 1)], true);
-            }
-
-            if (uniqueMonths.length > 0 && uniqueYears.length > 0) {
-                const minY = Math.min(...uniqueYears);
-                const maxY = Math.max(...uniqueYears);
-                const minM = Math.min(...uniqueMonths);
-                const maxM = Math.max(...uniqueMonths);
-                monthFilter._flatpickr.setDate([new Date(minY, minM, 1), new Date(maxY, maxM, 1)], true);
-            }
         } catch (e) {
             console.warn('Error inicializando flatpickr:', e);
         }
@@ -326,14 +385,43 @@ function getSelectedMonthsFromFlatpickr(inputElem) {
     if (!inputElem) return [];
     const fp = inputElem._flatpickr;
     if (!fp) return [];
-    return fp.selectedDates || [];
+    // Retornar números de mes (0-11)
+    return fp.selectedDates.map(d => d.getMonth());
 }
 
 function getSelectedYearsFromFlatpickr(inputElem) {
     if (!inputElem) return [];
     const fp = inputElem._flatpickr;
     if (!fp) return [];
-    return fp.selectedDates || [];
+    // Retornar años como números
+    return fp.selectedDates.map(d => d.getFullYear());
+}
+
+// Obtener meses seleccionados (retorna array de nombres de meses)
+function getSelectedMonthNames() {
+    const monthFilter = document.getElementById('monthFilter');
+    const selectedMonths = getSelectedMonthsFromFlatpickr(monthFilter);
+    
+    if (selectedMonths.length === 0) {
+        // Si no hay selección, retornar todos los meses
+        return ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    }
+    
+    const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    return selectedMonths.sort((a, b) => a - b).map(m => monthNames[m]);
+}
+
+// Obtener años seleccionados
+function getSelectedYears() {
+    const yearFilter = document.getElementById('yearFilter');
+    const selectedYears = getSelectedYearsFromFlatpickr(yearFilter);
+    
+    if (selectedYears.length === 0 && cespedesHistoricData.length > 0) {
+        // Si no hay selección, retornar todos los años
+        return cespedesHistoricData.map(d => d.year).filter(y => y > 0);
+    }
+    
+    return selectedYears.sort((a, b) => a - b);
 }
 
 // Manejar selección de embalse
@@ -364,20 +452,284 @@ function showEmbalseInfo(embalse) {
         <p><strong>Uso:</strong> ${embalse.uso}</p>
     `;
 
-    // Actualizar placeholder de tendencias
-    const trendPlaceholder = document.querySelector('.trend-placeholder');
-    trendPlaceholder.innerHTML = `
-        <i class="fas fa-chart-line" style="color: #3498db;"></i>
-        <h4>Gráficos de Tendencia</h4>
-        <p>Para: <strong>${embalse.nombre}</strong></p>
-        <p>Los gráficos de tendencia se construirán próximamente</p>
-        <div style="margin-top: 20px; padding: 15px; background: rgba(52, 152, 219, 0.1); border-radius: 10px;">
-            <p style="margin: 0; font-size: 0.9rem; color: #2c3e50;">
-                <i class="fas fa-info-circle"></i> 
-                Aquí se mostrarán gráficos de evolución temporal del volumen, precipitaciones y otros indicadores.
-            </p>
-        </div>
-    `;
+    // Actualizar tendencias - verificar si es Céspedes
+    const trendContent = document.querySelector('.trends-content');
+    
+    // Verificar si el embalse es Carlos Manuel de Céspedes
+    if (embalse.nombre.toLowerCase().includes('céspedes') || embalse.nombre.toLowerCase().includes('cespedes')) {
+        if (cespedesHistoricData.length > 0) {
+            trendContent.innerHTML = '<canvas id="trendsChart" style="max-height: 500px;"></canvas>';
+            createTrendsChart();
+        } else {
+            trendContent.innerHTML = `
+                <div class="trend-placeholder">
+                    <i class="fas fa-exclamation-triangle" style="color: #f39c12;"></i>
+                    <h4>Gráficos de Tendencia</h4>
+                    <p>Para: <strong>${embalse.nombre}</strong></p>
+                    <p>No se pudieron cargar los datos históricos</p>
+                </div>
+            `;
+        }
+    } else {
+        trendContent.innerHTML = `
+            <div class="trend-placeholder">
+                <i class="fas fa-chart-line" style="color: #3498db;"></i>
+                <h4>Gráficos de Tendencia</h4>
+                <p>Para: <strong>${embalse.nombre}</strong></p>
+                <p>Los datos históricos solo están disponibles para el embalse Carlos Manuel de Céspedes</p>
+            </div>
+        `;
+    }
+}
+
+// Crear gráfico de tendencias históricas
+let trendsChart = null;
+
+function createTrendsChart() {
+    const ctx = document.getElementById('trendsChart');
+    if (!ctx) return;
+    
+    // Destruir gráfico anterior si existe
+    if (trendsChart) {
+        trendsChart.destroy();
+    }
+
+    // Obtener filtros seleccionados
+    const selectedMonthNames = getSelectedMonthNames();
+    const selectedYears = getSelectedYears();
+    
+    // Filtrar datos históricos según los años seleccionados
+    const filteredHistoricData = cespedesHistoricData.filter(d => selectedYears.includes(d.year));
+    
+    if (filteredHistoricData.length === 0) {
+        console.warn('No hay datos para los años seleccionados');
+        return;
+    }
+
+    // Calcular estadísticas por mes (solo para los meses seleccionados)
+    const statistics = [];
+    
+    selectedMonthNames.forEach(month => {
+        const values = filteredHistoricData.map(yearData => yearData.months[month]).filter(v => v > 0);
+        
+        if (values.length > 0) {
+            statistics.push({
+                month: month,
+                min: Math.min(...values),
+                max: Math.max(...values),
+                avg: values.reduce((sum, val) => sum + val, 0) / values.length
+            });
+        } else {
+            statistics.push({
+                month: month,
+                min: 0,
+                max: 0,
+                avg: 0
+            });
+        }
+    });
+
+    // Obtener datos del año más reciente de los seleccionados
+    const mostRecentYear = Math.max(...selectedYears);
+    const currentYearData = cespedesHistoricData.find(d => d.year === mostRecentYear);
+    const currentYearValues = currentYearData ? selectedMonthNames.map(m => currentYearData.months[m]) : [];
+    
+    // Crear datasets para cada año seleccionado (si son pocos)
+    const yearDatasets = [];
+    if (selectedYears.length <= 5 && selectedYears.length > 1) {
+        // Generar colores dinámicamente
+        const colors = [
+            { border: '#9b59b6', bg: 'rgba(155, 89, 182, 0.1)' },
+            { border: '#34495e', bg: 'rgba(52, 73, 94, 0.1)' },
+            { border: '#16a085', bg: 'rgba(22, 160, 133, 0.1)' },
+            { border: '#d35400', bg: 'rgba(211, 84, 0, 0.1)' },
+            { border: '#c0392b', bg: 'rgba(192, 57, 43, 0.1)' }
+        ];
+        
+        selectedYears.forEach((year, index) => {
+            const yearData = cespedesHistoricData.find(d => d.year === year);
+            if (yearData) {
+                const color = colors[index % colors.length];
+                yearDatasets.push({
+                    label: `Año ${year}`,
+                    data: selectedMonthNames.map(m => yearData.months[m]),
+                    borderColor: color.border,
+                    backgroundColor: color.bg,
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.4,
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                });
+            }
+        });
+    }
+
+    // Crear datasets dinámicamente
+    const datasets = [];
+    
+    // Siempre mostrar estadísticas históricas si hay más de 1 año
+    if (filteredHistoricData.length > 1) {
+        datasets.push(
+            {
+                label: 'Mínimo Histórico',
+                data: statistics.map(s => s.min),
+                borderColor: '#3498db',
+                backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                borderWidth: 2,
+                fill: false,
+                tension: 0.4,
+                pointRadius: 4,
+                pointHoverRadius: 6
+            },
+            {
+                label: 'Media Histórica',
+                data: statistics.map(s => s.avg),
+                borderColor: '#2ecc71',
+                backgroundColor: 'rgba(46, 204, 113, 0.1)',
+                borderWidth: 3,
+                fill: false,
+                tension: 0.4,
+                pointRadius: 5,
+                pointHoverRadius: 7
+            },
+            {
+                label: 'Máximo Histórico',
+                data: statistics.map(s => s.max),
+                borderColor: '#e74c3c',
+                backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                borderWidth: 2,
+                fill: false,
+                tension: 0.4,
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }
+        );
+    }
+    
+    // Agregar datasets de años individuales si aplica
+    if (yearDatasets.length > 0) {
+        datasets.push(...yearDatasets);
+    } else if (currentYearValues.length > 0) {
+        // Si hay muchos años, solo mostrar el más reciente
+        datasets.push({
+            label: `Año ${mostRecentYear}`,
+            data: currentYearValues,
+            borderColor: '#f39c12',
+            backgroundColor: 'rgba(243, 156, 18, 0.2)',
+            borderWidth: 3,
+            fill: false,
+            tension: 0.4,
+            pointRadius: 6,
+            pointHoverRadius: 8,
+            borderDash: [5, 5]
+        });
+    }
+    
+    // Crear título dinámico
+    let chartTitle = 'Tendencia de Precipitaciones - Embalse Carlos Manuel de Céspedes';
+    if (selectedYears.length <= 5 && selectedYears.length > 0) {
+        const yearsText = selectedYears.length === 1 ? `Año ${selectedYears[0]}` : `Años ${selectedYears.join(', ')}`;
+        chartTitle += ` (${yearsText})`;
+    }
+
+    // Crear gráfico
+    trendsChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: selectedMonthNames,
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            plugins: {
+                title: {
+                    display: true,
+                    text: chartTitle,
+                    font: {
+                        size: 16,
+                        weight: 'bold'
+                    },
+                    padding: {
+                        top: 10,
+                        bottom: 20
+                    }
+                },
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 15,
+                        font: {
+                            size: 12
+                        }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    titleFont: {
+                        size: 14,
+                        weight: 'bold'
+                    },
+                    bodyFont: {
+                        size: 13
+                    },
+                    padding: 12,
+                    displayColors: true,
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.parsed.y.toFixed(1) + ' mm';
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Precipitación (mm)',
+                        font: {
+                            size: 14,
+                            weight: 'bold'
+                        }
+                    },
+                    ticks: {
+                        font: {
+                            size: 12
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Mes',
+                        font: {
+                            size: 14,
+                            weight: 'bold'
+                        }
+                    },
+                    ticks: {
+                        font: {
+                            size: 12
+                        }
+                    },
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
 }
 
 // Limpiar información del embalse
@@ -388,11 +740,19 @@ function clearEmbalseInfo() {
         <p>Selecciona un embalse para ver su ubicación en el mapa</p>
     `;
 
-    const trendPlaceholder = document.querySelector('.trend-placeholder');
-    trendPlaceholder.innerHTML = `
-        <i class="fas fa-chart-area"></i>
-        <p>Los gráficos de tendencia se construirán próximamente</p>
+    const trendContent = document.querySelector('.trends-content');
+    trendContent.innerHTML = `
+        <div class="trend-placeholder">
+            <i class="fas fa-chart-area"></i>
+            <p>Selecciona un embalse para ver sus tendencias</p>
+        </div>
     `;
+    
+    // Destruir gráfico si existe
+    if (trendsChart) {
+        trendsChart.destroy();
+        trendsChart = null;
+    }
 }
 
 // Actualizar estadísticas
@@ -500,9 +860,20 @@ async function refreshData() {
     try {
         showLoadingMessage('Actualizando datos...');
         await loadEmbalsesData();
+        await loadCespedesHistoricData();
         initializeDashboard();
         populateEmbalseSelector();
         updateStatistics();
+        
+        // Si hay un embalse seleccionado, actualizar su información
+        const selectedEmbalseId = document.getElementById('embalseSelect').value;
+        if (selectedEmbalseId) {
+            const selectedEmbalse = embalsesData.find(e => e.id === parseInt(selectedEmbalseId));
+            if (selectedEmbalse) {
+                showEmbalseInfo(selectedEmbalse);
+            }
+        }
+        
         hideLoadingMessage();
         showSuccessMessage('Datos actualizados correctamente');
     } catch (error) {
