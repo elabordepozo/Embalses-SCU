@@ -166,36 +166,141 @@ body {
 
 .date-filter {
     position: relative;
-    min-width: 180px;
+    min-width: 220px;
 }
 
 .date-filter i {
     position: absolute;
     left: 15px;
-    top: 14px;
+    top: 50%;
+    transform: translateY(-50%);
     color: #7f8c8d;
     z-index: 1;
+    pointer-events: none;
 }
 
-.date-filter select {
+.date-filter input {
     width: 100%;
-    padding: 10px 15px 10px 40px;
+    padding: 12px 15px 12px 45px;
     border: 2px solid #e0e0e0;
     border-radius: 25px;
-    font-size: 0.9rem;
+    font-size: 0.95rem;
     background: white;
     cursor: pointer;
-    transition: border-color 0.3s ease;
+    transition: all 0.3s ease;
 }
 
-.date-filter select:focus {
+.date-filter input:hover {
+    border-color: #3498db;
+    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.1);
+}
+
+.date-filter input:focus {
     outline: none;
     border-color: #3498db;
+    box-shadow: 0 2px 12px rgba(52, 152, 219, 0.2);
 }
 
-.date-filter select[multiple] {
-    height: 100px; /* Adjust height as needed */
-    padding: 10px 15px 10px 40px;
+/* Estilos personalizados para Flatpickr */
+.flatpickr-calendar {
+    background: white;
+    border-radius: 15px !important;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15) !important;
+    border: none !important;
+}
+
+.flatpickr-months {
+    background: linear-gradient(135deg, #3498db, #2980b9) !important;
+    border-radius: 15px 15px 0 0 !important;
+    padding: 10px 0 !important;
+}
+
+.flatpickr-current-month {
+    color: white !important;
+    font-size: 1.1rem !important;
+    font-weight: 600 !important;
+}
+
+.flatpickr-prev-month,
+.flatpickr-next-month {
+    fill: white !important;
+}
+
+.flatpickr-prev-month:hover,
+.flatpickr-next-month:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+}
+
+.flatpickr-weekdays {
+    background: #f8f9fa;
+    padding: 10px 0;
+}
+
+.flatpickr-weekday {
+    color: #7f8c8d !important;
+    font-weight: 600 !important;
+}
+
+.flatpickr-day {
+    border-radius: 8px !important;
+    transition: all 0.2s ease !important;
+}
+
+.flatpickr-day:hover:not(.flatpickr-disabled) {
+    background: #e8f4fd !important;
+    border-color: #3498db !important;
+}
+
+.flatpickr-day.selected,
+.flatpickr-day.startRange,
+.flatpickr-day.endRange {
+    background: linear-gradient(135deg, #3498db, #2980b9) !important;
+    border-color: #2980b9 !important;
+    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3) !important;
+}
+
+.flatpickr-day.inRange {
+    background: rgba(52, 152, 219, 0.1) !important;
+    border-color: transparent !important;
+}
+
+.flatpickr-day.today {
+    border-color: #e74c3c !important;
+    font-weight: 600 !important;
+}
+
+.flatpickr-day.today:not(.selected) {
+    color: #e74c3c !important;
+}
+
+/* Botón de limpiar filtros */
+.filter-actions {
+    display: flex;
+    align-items: center;
+}
+
+.clear-filters-btn {
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 25px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.clear-filters-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
+}
+
+.clear-filters-btn:active {
+    transform: translateY(0);
 }
 
 /* Main Content */

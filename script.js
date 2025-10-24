@@ -237,44 +237,81 @@ function populateDateFilters() {
     const uniqueYears = [...new Set(dates.map(d => d.getFullYear()))].sort((a, b) => b - a);
     const uniqueMonths = [...new Set(dates.map(d => d.getMonth()))].sort((a, b) => a - b);
 
+    // Calcular min y max fechas para establecer límites
+    let minDate = null;
+    let maxDate = null;
+    if (dates.length > 0) {
+        minDate = new Date(Math.min(...dates));
+        maxDate = new Date(Math.max(...dates));
+    }
+
     // Inicializar flatpickr si está disponible
     if (window.flatpickr) {
         try {
-            // month picker: usamos monthSelectPlugin para mostrar meses (sin día)
-            // month picker: permitir selección de rango de meses
+            // Selector de meses con calendario visual
             flatpickr(monthFilter, {
                 mode: 'range',
                 dateFormat: 'Y-m',
                 altInput: true,
                 altFormat: 'F Y',
-                plugins: [new monthSelectPlugin({ shorthand: false, dateFormat: 'Y-m', altFormat: 'F Y' })],
+                minDate: minDate,
+                maxDate: maxDate,
+                locale: {
+                    firstDayOfWeek: 1,
+                    weekdays: {
+                        shorthand: ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'],
+                        longhand: ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+                    },
+                    months: {
+                        shorthand: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
+                        longhand: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+                    },
+                    rangeSeparator: ' hasta '
+                },
+                plugins: [new monthSelectPlugin({ 
+                    shorthand: false, 
+                    dateFormat: 'Y-m', 
+                    altFormat: 'F Y' 
+                })],
                 onChange: applyAllFilters
             });
 
-            // year picker: múltiples años
-            // year picker: permitir selección de rango de años
+            // Selector de años con calendario visual
             flatpickr(yearFilter, {
                 mode: 'range',
                 dateFormat: 'Y',
                 altInput: true,
                 altFormat: 'Y',
+                minDate: minDate ? new Date(minDate.getFullYear(), 0, 1) : null,
+                maxDate: maxDate ? new Date(maxDate.getFullYear(), 11, 31) : null,
+                locale: {
+                    firstDayOfWeek: 1,
+                    weekdays: {
+                        shorthand: ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'],
+                        longhand: ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+                    },
+                    months: {
+                        shorthand: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
+                        longhand: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+                    },
+                    rangeSeparator: ' hasta '
+                },
                 onChange: applyAllFilters
             });
 
-            // Pre-seleccionar años encontrados en los datos
+            // Pre-seleccionar todo el rango de datos disponibles
             if (uniqueYears.length > 0) {
-                // preseleccionar rango de años: min..max
                 const minY = Math.min(...uniqueYears);
                 const maxY = Math.max(...uniqueYears);
-                flatpickr(yearFilter).setDate([new Date(minY, 0, 1), new Date(maxY, 0, 1)], true);
+                yearFilter._flatpickr.setDate([new Date(minY, 0, 1), new Date(maxY, 0, 1)], true);
             }
 
-            // Pre-seleccionar meses: rango desde el mes mínimo hasta el máximo
-            if (uniqueMonths.length > 0) {
+            if (uniqueMonths.length > 0 && uniqueYears.length > 0) {
+                const minY = Math.min(...uniqueYears);
+                const maxY = Math.max(...uniqueYears);
                 const minM = Math.min(...uniqueMonths);
                 const maxM = Math.max(...uniqueMonths);
-                const sampleYear = (uniqueYears[0] || new Date().getFullYear());
-                flatpickr(monthFilter).setDate([new Date(sampleYear, minM, 1), new Date(sampleYear, maxM, 1)], true);
+                monthFilter._flatpickr.setDate([new Date(minY, minM, 1), new Date(maxY, maxM, 1)], true);
             }
         } catch (e) {
             console.warn('Error inicializando flatpickr:', e);
