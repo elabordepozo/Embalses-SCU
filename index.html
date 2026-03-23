@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cuencas Hidrográficas · Santiago de Cuba</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root {
+    --bg:       #080d18;
+    --panel:    #0d1527;
+    --border:   #1a2a44;
+    --accent:   #00c8e0;
+    --accent2:  #f0a500;
+    --text:     #c8d8f0;
+    --muted:    #4a6080;
+    --river:    #2a8fc8;
+    --shed:     #e03060;
+    --green:    #28c87a;
+    --danger:   #e05040;
+    --mono:     'DM Mono', monospace;
+    --serif:    'Lora', serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 0 18px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 500;
+  }
+  header .logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  header .logo svg { width: 28px; height: 28px; }
+  header h1 {
+    font-family: var(--serif);
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+  header h1 span { color: var(--accent); }
+  header .sep { flex: 1; }
+  header .badge {
+    font-size: 10px;
+    padding: 2px 8px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  header .badge b { color: var(--accent); font-weight: 400; }
+
+  /* ── LAYOUT ── */
+  .layout {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ── SIDEBAR ── */
+  #sidebar {
+    width: 268px;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    flex-shrink: 0;
+    z-index: 400;
+  }
+  #sidebar::-webkit-scrollbar { width: 4px; }
+  #sidebar::-webkit-scrollbar-track { background: transparent; }
+  #sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .section {
+    border-bottom: 1px solid var(--border);
+    padding: 14px 16px;
+  }
+  .section-title {
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Mode Toggle */
+  .mode-toggle {
+    display: flex;
+    background: var(--bg);
+    border-radius: 6px;
+    padding: 3px;
+    gap: 3px;
+    border: 1px solid var(--border);
+  }
+  .mode-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 7px 6px;
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .mode-btn.active {
+    background: var(--accent);
+    color: var(--bg);
+    font-weight: 500;
+  }
+  .mode-btn:hover:not(.active) { color: var(--text); background: var(--border); }
+
+  /* Precision */
+  .prec-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .prec-btn {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 6px 4px;
+    font-family: var(--mono);
+    font-size: 10px;
+    text-align: center;
+    transition: all 0.2s;
+  }
+  .prec-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(0,200,224,0.07); }
+  .prec-btn:hover:not(.active) { border-color: var(--muted); color: var(--text); }
+
+  /* Coordinates display */
+  .coord-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 9px 12px;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 10px;
+    font-style: italic;
+  }
+  .coord-box.has-coords { color: var(--accent); font-style: normal; }
+  .coord-box b { color: var(--text); }
+
+  /* Action button */
+  .action-btn {
+    width: 100%;
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    border-radius: 6px;
+    padding: 10px;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    transition: all 0.2s;
+    letter-spacing: 0.04em;
+  }
+  .action-btn:hover { background: #00e8ff; transform: translateY(-1px); }
+  .action-btn:active { transform: translateY(0); }
+  .action-btn:disabled {
+    background: var(--border);
+    color: var(--muted);
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .clear-btn {
+    width: 100%;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px;
+    color: var(--danger);
+    font-family: var(--mono);
+    font-size: 11px;
+    cursor: pointer;
+    margin-top: 6px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .clear-btn:hover { border-color: var(--danger); background: rgba(224,80,64,0.08); }
+
+  /* Status */
+  .status-bar {
+    padding: 8px 12px;
+    background: var(--bg);
+    border-radius: 5px;
+    margin-top: 10px;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 34px;
+  }
+  .status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+  }
+  .status-dot.ready { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .status-dot.loading { background: var(--accent2); animation: pulse 1s infinite; }
+  .status-dot.error { background: var(--danger); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* Results */
+  .result-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .result-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+  }
+  .result-row:last-child { border-bottom: none; }
+  .result-row .label { color: var(--muted); }
+  .result-row .value { color: var(--text); font-weight: 400; }
+  .result-row .value.accent { color: var(--accent); }
+  .result-row .value.amber { color: var(--accent2); }
+
+  /* Layer toggles */
+  .layer-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 0;
+    font-size: 11px;
+    color: var(--text);
+  }
+  .layer-row .layer-left { display: flex; align-items: center; gap: 8px; }
+  .dot-swatch { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+  .toggle-sw {
+    width: 30px;
+    height: 16px;
+    background: var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .toggle-sw::after {
+    content: '';
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: all 0.2s;
+  }
+  .toggle-sw.on { background: rgba(0,200,224,0.25); }
+  .toggle-sw.on::after { left: 16px; background: var(--accent); }
+
+  /* Download buttons */
+  .dl-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-top: 4px;
+  }
+  .dl-btn {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 7px 8px;
+    font-family: var(--mono);
+    font-size: 10px;
+    text-align: left;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .dl-btn:hover:not(:disabled) { border-color: var(--accent2); color: var(--accent2); background: rgba(240,165,0,0.06); }
+  .dl-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  /* ── MAP ── */
+  #map {
+    flex: 1;
+    cursor: crosshair;
+  }
+
+  /* Leaflet overrides */
+  .leaflet-popup-content-wrapper {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    padding: 0;
+  }
+  .leaflet-popup-content { margin: 0; }
+  .leaflet-popup-tip { background: var(--border); }
+  .leaflet-popup-close-button { color: var(--muted) !important; top: 8px !important; right: 10px !important; font-size: 16px !important; }
+  .leaflet-popup-close-button:hover { color: var(--text) !important; }
+  .leaflet-control-zoom { border: 1px solid var(--border) !important; border-radius: 6px !important; overflow: hidden; }
+  .leaflet-control-zoom a {
+    background: var(--panel) !important;
+    color: var(--text) !important;
+    border-bottom: 1px solid var(--border) !important;
+  }
+  .leaflet-control-zoom a:hover { background: var(--border) !important; color: var(--accent) !important; }
+  .leaflet-control-layers { background: var(--panel) !important; border: 1px solid var(--border) !important; color: var(--text) !important; font-family: var(--mono) !important; border-radius: 6px !important; }
+  .leaflet-control-layers-base label, .leaflet-control-layers-overlays label { color: var(--text) !important; font-size: 11px; }
+
+  /* Custom popup */
+  .map-popup {
+    padding: 14px 16px;
+    min-width: 200px;
+  }
+  .map-popup h3 {
+    font-family: var(--serif);
+    font-size: 13px;
+    color: #fff;
+    margin-bottom: 6px;
+  }
+  .map-popup .coords {
+    font-size: 10px;
+    color: var(--muted);
+    margin-bottom: 12px;
+    font-family: var(--mono);
+  }
+  .popup-btn {
+    width: 100%;
+    border: none;
+    border-radius: 5px;
+    padding: 8px 12px;
+    font-family: var(--mono);
+    font-size: 11px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.2s;
+    margin-bottom: 4px;
+  }
+  .popup-btn.upstream {
+    background: var(--accent);
+    color: var(--bg);
+    font-weight: 500;
+  }
+  .popup-btn.upstream:hover { background: #00e8ff; }
+  .popup-btn.downstream {
+    background: var(--river);
+    color: #fff;
+  }
+  .popup-btn.downstream:hover { background: #3aa8e0; }
+
+  /* Info box bottom-right */
+  #info-overlay {
+    position: absolute;
+    bottom: 30px;
+    right: 10px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    z-index: 1000;
+    font-size: 10px;
+    color: var(--muted);
+    min-width: 160px;
+    pointer-events: none;
+  }
+  #info-overlay .coord-live { font-size: 11px; color: var(--text); letter-spacing: 0.05em; margin-top: 3px; }
+
+  /* Loading overlay */
+  #loading-overlay {
+    display: none;
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(8,13,24,0.6);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 14px;
+  }
+  #loading-overlay.show { display: flex; }
+  .spinner {
+    width: 44px;
+    height: 44px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #loading-overlay p {
+    color: var(--text);
+    font-size: 12px;
+    font-family: var(--mono);
+  }
+
+  /* Error toast */
+  #toast {
+    position: absolute;
+    top: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #3a1010;
+    border: 1px solid var(--danger);
+    color: #ff8880;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-size: 11px;
+    z-index: 3000;
+    display: none;
+    max-width: 420px;
+    text-align: center;
+  }
+  #toast.show { display: block; animation: fadein 0.3s; }
+  @keyframes fadein { from{opacity:0;transform:translateX(-50%) translateY(-10px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+
+  /* Embalse markers */
+  .embalse-icon { text-align: center; font-size: 16px; line-height: 1; }
+
+  /* Scale ruler custom */
+  .leaflet-control-scale-line {
+    background: rgba(13,21,39,0.8);
+    border: 1px solid var(--border) !important;
+    border-top: 2px solid var(--accent) !important;
+    color: var(--accent) !important;
+    font-family: var(--mono) !important;
+    font-size: 9px !important;
+  }
+
+  /* Attrib */
+  .leaflet-control-attribution {
+    background: rgba(8,13,24,0.7) !important;
+    color: var(--muted) !important;
+    font-size: 9px !important;
+  }
+  .leaflet-control-attribution a { color: var(--muted) !important; }
+
+  /* Responsive */
+  @media (max-width: 700px) {
+    #sidebar { width: 240px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    <svg viewBox="0 0 28 28" fill="none">
+      <path d="M14 3C8 3 3 8 3 14s5 11 11 11 11-5 11-11S20 3 14 3z" stroke="#1a2a44" stroke-width="1.5"/>
+      <path d="M14 6c-1 2-3 4-3 8s2 6 3 8M14 6c1 2 3 4 3 8s-2 6-3 8M6 14h16" stroke="#00c8e0" stroke-width="1" opacity="0.6"/>
+      <path d="M7 10c2 1 5 1.5 7 1.5S21 11 23 10M7 18c2-1 5-1.5 7-1.5S21 17 23 18" stroke="#00c8e0" stroke-width="1" opacity="0.4"/>
+      <circle cx="14" cy="14" r="2" fill="#00c8e0"/>
+    </svg>
+    <h1>Cuencas <span>Santiago de Cuba</span></h1>
+  </div>
+  <div class="sep"></div>
+  <div class="badge">Powered by <b>MERIT-Hydro</b> · Global Watersheds API</div>
+  <div class="badge">EAH · INRH</div>
+</header>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+
+    <!-- MODE -->
+    <div class="section">
+      <div class="section-title">Modo de análisis</div>
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="btn-upstream" onclick="setMode('upstream')">
+          ▲ Cuenca aguas arriba
+        </button>
+        <button class="mode-btn" id="btn-downstream" onclick="setMode('downstream')">
+          ▼ Flujo aguas abajo
+        </button>
+      </div>
+
+      <div class="prec-row">
+        <button class="prec-btn active" id="prec-high" onclick="setPrecision('high')">Alta precisión</button>
+        <button class="prec-btn" id="prec-low" onclick="setPrecision('low')">Baja precisión</button>
+      </div>
+
+      <div class="coord-box" id="coord-display">
+        Haz clic en el mapa para seleccionar un punto…
+      </div>
+
+      <button class="action-btn" id="btn-delinear" onclick="delinear()" disabled>
+        <span id="btn-icon">▲</span>
+        <span id="btn-label">Selecciona un punto</span>
+      </button>
+      <button class="clear-btn" onclick="clearAll()">
+        ✕ Limpiar resultados
+      </button>
+
+      <div class="status-bar">
+        <div class="status-dot" id="status-dot"></div>
+        <span id="status-text">Listo. Haz clic en el mapa.</span>
+      </div>
+    </div>
+
+    <!-- RESULTS -->
+    <div class="section" id="results-section" style="display:none">
+      <div class="section-title">Resultado</div>
+      <div class="result-card">
+        <div class="result-row">
+          <span class="label">Área cuenca</span>
+          <span class="value accent" id="res-area">—</span>
+        </div>
+        <div class="result-row">
+          <span class="label">Outlet (lat)</span>
+          <span class="value" id="res-lat">—</span>
+        </div>
+        <div class="result-row">
+          <span class="label">Outlet (lon)</span>
+          <span class="value" id="res-lng">—</span>
+        </div>
+        <div class="result-row">
+          <span class="label">Fuente datos</span>
+          <span class="value amber">MERIT-Hydro</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- DESCARGAS -->
+    <div class="section" id="downloads-section">
+      <div class="section-title">Descargar resultados</div>
+      <div class="dl-grid">
+        <button class="dl-btn" id="dl-boundary" onclick="downloadLayer('boundary')" disabled>
+          📥 Cuenca GeoJSON
+        </button>
+        <button class="dl-btn" id="dl-rivers" onclick="downloadLayer('rivers')" disabled>
+          🌊 Ríos GeoJSON
+        </button>
+        <button class="dl-btn" id="dl-flowpath" onclick="downloadLayer('flowpath')" disabled>
+          ↪ Flujo GeoJSON
+        </button>
+        <button class="dl-btn" onclick="exportMap()" disabled id="dl-map">
+          🗺 Vista actual
+        </button>
+      </div>
+    </div>
+
+    <!-- CAPAS -->
+    <div class="section">
+      <div class="section-title">Capas de referencia</div>
+
+      <div class="layer-row">
+        <div class="layer-left">
+          <div class="dot-swatch" style="background:#3a7ff0"></div>
+          <span>Embalses EAH</span>
+        </div>
+        <div class="toggle-sw on" id="tog-embalses" onclick="toggleLayer('embalses', this)"></div>
+      </div>
+
+      <div class="layer-row">
+        <div class="layer-left">
+          <div class="dot-swatch" style="background:var(--river);border-radius:50%"></div>
+          <span>Red hidrográfica OSM</span>
+        </div>
+        <div class="toggle-sw" id="tog-rios" onclick="toggleLayer('rios', this)"></div>
+      </div>
+
+      <div class="layer-row">
+        <div class="layer-left">
+          <div class="dot-swatch" style="background:var(--shed);border-radius:50%"></div>
+          <span>Límite provincial</span>
+        </div>
+        <div class="toggle-sw on" id="tog-limite" onclick="toggleLayer('limite', this)"></div>
+      </div>
+    </div>
+
+    <!-- INSTRUCCIONES -->
+    <div class="section">
+      <div class="section-title">Instrucciones</div>
+      <div style="font-size:10px; color:var(--muted); line-height:1.7;">
+        <p>① Selecciona el modo: <b style="color:var(--text)">Cuenca</b> delimita el área de aporte aguas arriba. <b style="color:var(--text)">Flujo</b> traza el recorrido aguas abajo.</p>
+        <br>
+        <p>② Haz clic en cualquier punto del mapa y presiona <b style="color:var(--accent)">Delimitar</b>.</p>
+        <br>
+        <p>③ Descarga los resultados en GeoJSON para importar en QGIS.</p>
+        <br>
+        <p style="color:#3a4a60;">API: mghydro.com/app/watershed_api<br>Datos: MERIT-Hydro 2021</p>
+      </div>
+    </div>
+
+  </div><!-- /sidebar -->
+
+  <!-- MAP CONTAINER -->
+  <div style="flex:1; position:relative;">
+    <div id="map"></div>
+
+    <!-- Info overlay -->
+    <div id="info-overlay">
+      <div>Cursor (WGS84)</div>
+      <div class="coord-live" id="cursor-coords">—</div>
+    </div>
+
+    <!-- Loading -->
+    <div id="loading-overlay">
+      <div class="spinner"></div>
+      <p id="loading-msg">Delimitando cuenca…</p>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast"></div>
+  </div>
+
+</div><!-- /layout -->
+
+<script>
+// ══════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════
+let mode = 'upstream';
+let precision = 'high';
+let selectedLat = null;
+let selectedLng = null;
+let clickMarker = null;
+let boundaryLayer = null;
+let riversLayer = null;
+let flowpathLayer = null;
+let boundaryGeoJSON = null;
+let riversGeoJSON = null;
+let flowpathGeoJSON = null;
+
+// ══════════════════════════════════════════
+// MAP INIT
+// ══════════════════════════════════════════
+const map = L.map('map', {
+  center: [20.05, -75.82],
+  zoom: 10,
+  zoomControl: true,
+});
+
+// Basemaps
+const basemaps = {
+  'CartoDB Oscuro': L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© OpenStreetMap © CARTO', subdomains: 'abcd', maxZoom: 19
+  }),
+  'CartoDB Voyager': L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    attribution: '© OpenStreetMap © CARTO', subdomains: 'abcd', maxZoom: 19
+  }),
+  'OpenStreetMap': L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap', maxZoom: 19
+  }),
+  'Satélite ESRI': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: '© Esri', maxZoom: 18
+  }),
+};
+basemaps['CartoDB Oscuro'].addTo(map);
+L.control.layers(basemaps, {}, { position: 'topright' }).addTo(map);
+L.control.scale({ metric: true, imperial: false, position: 'bottomright' }).addTo(map);
+
+// Cursor coordinates
+map.on('mousemove', e => {
+  document.getElementById('cursor-coords').textContent =
+    `${e.latlng.lat.toFixed(5)}°N  ${e.latlng.lng.toFixed(5)}°W`;
+});
+
+// Click handler
+map.on('click', e => {
+  selectedLat = e.latlng.lat;
+  selectedLng = e.latlng.lng;
+  placeClickMarker(selectedLat, selectedLng);
+  updateCoordDisplay();
+  enableDelineate();
+});
+
+// ══════════════════════════════════════════
+// EMBALSES LAYER (Santiago de Cuba)
+// ══════════════════════════════════════════
+const embalseData = [
+  { name: 'Embalse Charco Mono',     lat: 20.2530, lng: -76.1800, cap: 20.0  },
+  { name: 'Embalse Baconao',         lat: 19.9900, lng: -75.5200, cap: 8.4   },
+  { name: 'Embalse Paso Malo',       lat: 20.3100, lng: -75.9800, cap: 5.6   },
+  { name: 'Embalse El Cobre',        lat: 20.0450, lng: -75.9200, cap: 9.2   },
+  { name: 'Embalse Contramaestre',   lat: 20.2800, lng: -76.2500, cap: 66.5  },
+  { name: 'Embalse Cauto del Paso',  lat: 20.4600, lng: -76.3800, cap: 4.1   },
+  { name: 'Embalse Palmarito',       lat: 20.1800, lng: -76.4200, cap: 11.3  },
+  { name: 'Embalse La Leña',         lat: 20.2200, lng: -75.6500, cap: 3.8   },
+  { name: 'Embalse Peladero',        lat: 20.3600, lng: -76.0500, cap: 14.2  },
+  { name: 'Embalse Sevilla',         lat: 20.2900, lng: -75.8400, cap: 22.6  },
+  { name: 'Embalse San Pedrito',     lat: 20.0000, lng: -75.7700, cap: 6.5   },
+];
+
+const embalseGroup = L.layerGroup();
+const blueIcon = L.divIcon({
+  className: 'embalse-icon',
+  html: `<div style="
+    background: #3a7ff0;
+    border: 2px solid #fff;
+    border-radius: 50% 50% 50% 0;
+    width: 16px; height: 16px;
+    transform: rotate(-45deg);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5);">
+  </div>`,
+  iconSize: [16, 16],
+  iconAnchor: [8, 14],
+});
+
+embalseData.forEach(e => {
+  const marker = L.marker([e.lat, e.lng], { icon: blueIcon });
+  marker.bindPopup(`
+    <div class="map-popup">
+      <h3>💧 ${e.name}</h3>
+      <div class="coords">Lat: ${e.lat} | Lon: ${e.lng}</div>
+      <div style="font-size:11px; color:var(--muted); margin-bottom:10px;">
+        Capacidad aprox.: <b style="color:var(--text)">${e.cap} Mm³</b>
+      </div>
+      <button class="popup-btn upstream" onclick="delinearDesdePopup(${e.lat},${e.lng},'upstream')">
+        ▲ Delimitar cuenca de aporte
+      </button>
+    </div>
+  `, { className: '' });
+  embalseGroup.addLayer(marker);
+});
+embalseGroup.addTo(map);
+
+// ══════════════════════════════════════════
+// PROVINCE BOUNDARY (approx bounding box highlight)
+// ══════════════════════════════════════════
+// Approximate polygon for Santiago de Cuba province
+const stgoCoords = [
+  [20.52, -76.48], [20.50, -76.30], [20.45, -76.10], [20.42, -75.90],
+  [20.38, -75.70], [20.30, -75.50], [20.15, -75.35], [19.95, -75.18],
+  [19.78, -75.35], [19.70, -75.55], [19.72, -75.80], [19.78, -76.05],
+  [19.88, -76.20], [19.95, -76.40], [20.05, -76.55], [20.20, -76.60],
+  [20.35, -76.58], [20.48, -76.55], [20.52, -76.48]
+];
+const limiteLayer = L.polygon(stgoCoords, {
+  color: '#e03060',
+  weight: 1.5,
+  dashArray: '6 4',
+  fillColor: '#e03060',
+  fillOpacity: 0.04,
+}).addTo(map);
+limiteLayer.bindTooltip('Provincia Santiago de Cuba', {
+  permanent: false, direction: 'center',
+  className: 'leaflet-tooltip',
+  style: 'background:var(--panel);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:10px;'
+});
+
+// OSM rivers (WMS from overpass/OSM - using Overpass-based WMS tile)
+const riosLayer = L.tileLayer(
+  'https://tile.waymarkedtrails.org/cycling/{z}/{x}/{y}.png',
+  { opacity: 0, maxZoom: 18 }
+); // placeholder - real rivers come from watershed API results
+
+// ══════════════════════════════════════════
+// MARKER
+// ══════════════════════════════════════════
+function placeClickMarker(lat, lng) {
+  if (clickMarker) map.removeLayer(clickMarker);
+  const icon = L.divIcon({
+    className: '',
+    html: `<div style="
+      width:14px; height:14px;
+      border-radius:50%;
+      background:var(--accent2);
+      border:3px solid #fff;
+      box-shadow: 0 0 12px var(--accent2);
+    "></div>`,
+    iconSize: [14, 14],
+    iconAnchor: [7, 7],
+  });
+  clickMarker = L.marker([lat, lng], { icon }).addTo(map);
+  clickMarker.bindPopup(buildPopupHTML(lat, lng)).openPopup();
+}
+
+function buildPopupHTML(lat, lng) {
+  return `<div class="map-popup">
+    <h3>📍 Punto seleccionado</h3>
+    <div class="coords">${lat.toFixed(5)}°N &nbsp; ${lng.toFixed(5)}°W</div>
+    <button class="popup-btn upstream" onclick="delinearDesdePopup(${lat},${lng},'upstream')">
+      ▲ Delimitar cuenca aguas arriba
+    </button>
+    <button class="popup-btn downstream" onclick="delinearDesdePopup(${lat},${lng},'downstream')">
+      ▼ Trazar flujo aguas abajo
+    </button>
+  </div>`;
+}
+
+window.delinearDesdePopup = function(lat, lng, modoLocal) {
+  selectedLat = lat;
+  selectedLng = lng;
+  setMode(modoLocal);
+  map.closePopup();
+  delinear();
+};
+
+// ══════════════════════════════════════════
+// UI HELPERS
+// ══════════════════════════════════════════
+function setMode(m) {
+  mode = m;
+  document.getElementById('btn-upstream').classList.toggle('active', m === 'upstream');
+  document.getElementById('btn-downstream').classList.toggle('active', m === 'downstream');
+  document.getElementById('btn-icon').textContent = m === 'upstream' ? '▲' : '▼';
+  if (selectedLat) {
+    document.getElementById('btn-label').textContent = m === 'upstream' ? 'Delimitar cuenca' : 'Trazar flujo';
+  }
+}
+
+function setPrecision(p) {
+  precision = p;
+  document.getElementById('prec-high').classList.toggle('active', p === 'high');
+  document.getElementById('prec-low').classList.toggle('active', p === 'low');
+}
+
+function updateCoordDisplay() {
+  const box = document.getElementById('coord-display');
+  box.classList.add('has-coords');
+  box.innerHTML = `<b>Lat:</b> ${selectedLat.toFixed(5)}&nbsp; <b>Lon:</b> ${selectedLng.toFixed(5)}`;
+}
+
+function enableDelineate() {
+  const btn = document.getElementById('btn-delinear');
+  btn.disabled = false;
+  btn.querySelector('#btn-label').textContent = mode === 'upstream' ? 'Delimitar cuenca' : 'Trazar flujo';
+}
+
+function setStatus(state, msg) {
+  const dot = document.getElementById('status-dot');
+  const txt = document.getElementById('status-text');
+  dot.className = 'status-dot ' + state;
+  txt.textContent = msg;
+}
+
+function showLoading(msg) {
+  document.getElementById('loading-msg').textContent = msg || 'Procesando…';
+  document.getElementById('loading-overlay').classList.add('show');
+}
+
+function hideLoading() {
+  document.getElementById('loading-overlay').classList.remove('show');
+}
+
+function showToast(msg, duration=5000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+function toggleLayer(name, sw) {
+  sw.classList.toggle('on');
+  const on = sw.classList.contains('on');
+  if (name === 'embalses') on ? embalseGroup.addTo(map) : map.removeLayer(embalseGroup);
+  if (name === 'limite') on ? limiteLayer.addTo(map) : map.removeLayer(limiteLayer);
+}
+
+// ══════════════════════════════════════════
+// DELINEATION
+// ══════════════════════════════════════════
+async function delinear() {
+  if (!selectedLat) return;
+
+  const prec = precision === 'high' ? 'high' : 'low';
+  setStatus('loading', 'Consultando API MERIT-Hydro…');
+  showLoading(mode === 'upstream' ? 'Delimitando cuenca hidrográfica…' : 'Trazando flujo aguas abajo…');
+  document.getElementById('btn-delinear').disabled = true;
+
+  // Clear previous results
+  if (boundaryLayer) { map.removeLayer(boundaryLayer); boundaryLayer = null; }
+  if (riversLayer) { map.removeLayer(riversLayer); riversLayer = null; }
+  if (flowpathLayer) { map.removeLayer(flowpathLayer); flowpathLayer = null; }
+  boundaryGeoJSON = null; riversGeoJSON = null; flowpathGeoJSON = null;
+
+  try {
+    if (mode === 'upstream') {
+      await delinearUpstream(prec);
+    } else {
+      await trazarFlujoBajada(prec);
+    }
+  } catch(err) {
+    hideLoading();
+    setStatus('error', 'Error de conexión con API');
+    showToast(`Error: ${err.message}. Verifica la conexión. La API puede estar temporalmente saturada.`);
+    document.getElementById('btn-delinear').disabled = false;
+  }
+}
+
+async function delinearUpstream(prec) {
+  const boundaryUrl = `https://mghydro.com/app/watershed_api?lat=${selectedLat}&lng=${selectedLng}&precision=${prec}`;
+  const riversUrl   = `https://mghydro.com/app/upstream_rivers_api?lat=${selectedLat}&lng=${selectedLng}&precision=${prec}`;
+
+  setStatus('loading', 'Descargando límite de cuenca…');
+
+  const [bRes, rRes] = await Promise.all([
+    fetch(boundaryUrl),
+    fetch(riversUrl),
+  ]);
+
+  if (!bRes.ok) throw new Error(`API cuenca: HTTP ${bRes.status}`);
+  if (!rRes.ok) throw new Error(`API ríos: HTTP ${rRes.status}`);
+
+  boundaryGeoJSON = await bRes.json();
+  riversGeoJSON   = await rRes.json();
+
+  renderUpstream(boundaryGeoJSON, riversGeoJSON);
+}
+
+function renderUpstream(boundary, rivers) {
+  // Watershed boundary
+  boundaryLayer = L.geoJSON(boundary, {
+    style: {
+      color: '#e03060',
+      weight: 2.5,
+      fillColor: '#e03060',
+      fillOpacity: 0.12,
+      dashArray: null,
+    }
+  }).addTo(map);
+
+  // River network
+  riversLayer = L.geoJSON(rivers, {
+    style: {
+      color: '#2a8fc8',
+      weight: 1.8,
+      opacity: 0.9,
+    }
+  }).addTo(map);
+
+  // Fit bounds
+  try { map.fitBounds(boundaryLayer.getBounds().pad(0.1)); } catch(e) {}
+
+  // Extract area
+  let area = '—';
+  try {
+    const props = boundary.features?.[0]?.properties || boundary.properties || {};
+    const areaVal = props.area_km2 || props.area || props.shape_area;
+    if (areaVal) area = `${Number(areaVal).toLocaleString('es', {maximumFractionDigits:1})} km²`;
+    else area = 'Ver propiedades GeoJSON';
+  } catch(e) {}
+
+  showResults(area);
+  enableDownloads();
+  setStatus('ready', `Cuenca delimitada. ${area !== '—' ? area : ''}`);
+  hideLoading();
+  document.getElementById('btn-delinear').disabled = false;
+}
+
+async function trazarFlujoBajada(prec) {
+  // Downstream flow path API
+  const flowpathUrl = `https://mghydro.com/app/downstream_api?lat=${selectedLat}&lng=${selectedLng}&precision=${prec}`;
+
+  setStatus('loading', 'Trazando camino de flujo…');
+  const res = await fetch(flowpathUrl);
+  if (!res.ok) throw new Error(`API downstream: HTTP ${res.status}`);
+
+  flowpathGeoJSON = await res.json();
+  renderFlowpath(flowpathGeoJSON);
+}
+
+function renderFlowpath(gj) {
+  flowpathLayer = L.geoJSON(gj, {
+    style: {
+      color: '#00c8e0',
+      weight: 3,
+      opacity: 0.85,
+    }
+  }).addTo(map);
+
+  try { map.fitBounds(flowpathLayer.getBounds().pad(0.15)); } catch(e) {}
+
+  flowpathGeoJSON = gj;
+  enableDownloads();
+  document.getElementById('dl-flowpath').disabled = false;
+  document.getElementById('dl-rivers').disabled = true;
+  document.getElementById('dl-boundary').disabled = true;
+
+  showResults('—');
+  setStatus('ready', 'Flujo aguas abajo trazado.');
+  hideLoading();
+  document.getElementById('btn-delinear').disabled = false;
+}
+
+function showResults(area) {
+  document.getElementById('results-section').style.display = 'block';
+  document.getElementById('res-area').textContent = area;
+  document.getElementById('res-lat').textContent = selectedLat ? selectedLat.toFixed(5) + '°' : '—';
+  document.getElementById('res-lng').textContent = selectedLng ? selectedLng.toFixed(5) + '°' : '—';
+}
+
+function enableDownloads() {
+  document.getElementById('dl-boundary').disabled = !boundaryGeoJSON;
+  document.getElementById('dl-rivers').disabled = !riversGeoJSON;
+  document.getElementById('dl-flowpath').disabled = !flowpathGeoJSON;
+}
+
+// ══════════════════════════════════════════
+// CLEAR
+// ══════════════════════════════════════════
+function clearAll() {
+  if (clickMarker) { map.removeLayer(clickMarker); clickMarker = null; }
+  if (boundaryLayer) { map.removeLayer(boundaryLayer); boundaryLayer = null; }
+  if (riversLayer) { map.removeLayer(riversLayer); riversLayer = null; }
+  if (flowpathLayer) { map.removeLayer(flowpathLayer); flowpathLayer = null; }
+  boundaryGeoJSON = null; riversGeoJSON = null; flowpathGeoJSON = null;
+  selectedLat = null; selectedLng = null;
+
+  document.getElementById('coord-display').classList.remove('has-coords');
+  document.getElementById('coord-display').textContent = 'Haz clic en el mapa para seleccionar un punto…';
+  document.getElementById('btn-delinear').disabled = true;
+  document.getElementById('btn-label').textContent = 'Selecciona un punto';
+  document.getElementById('results-section').style.display = 'none';
+  document.getElementById('dl-boundary').disabled = true;
+  document.getElementById('dl-rivers').disabled = true;
+  document.getElementById('dl-flowpath').disabled = true;
+  setStatus('', 'Listo. Haz clic en el mapa.');
+}
+
+// ══════════════════════════════════════════
+// DOWNLOADS
+// ══════════════════════════════════════════
+function downloadLayer(type) {
+  let data, filename;
+  if (type === 'boundary' && boundaryGeoJSON) {
+    data = boundaryGeoJSON;
+    filename = `cuenca_${selectedLat?.toFixed(3)}_${selectedLng?.toFixed(3)}.geojson`;
+  } else if (type === 'rivers' && riversGeoJSON) {
+    data = riversGeoJSON;
+    filename = `rios_${selectedLat?.toFixed(3)}_${selectedLng?.toFixed(3)}.geojson`;
+  } else if (type === 'flowpath' && flowpathGeoJSON) {
+    data = flowpathGeoJSON;
+    filename = `flujo_${selectedLat?.toFixed(3)}_${selectedLng?.toFixed(3)}.geojson`;
+  } else return;
+
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportMap() {
+  // simple fallback - open mghydro with coords
+  if (selectedLat) {
+    window.open(`https://mghydro.com/watersheds/#${selectedLat},${selectedLng},12`, '_blank');
+  }
+}
+
+// Init
+setStatus('', 'Listo. Haz clic en el mapa.');
+</script>
+</body>
+</html>
